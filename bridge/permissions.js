@@ -23,6 +23,14 @@ export function ruleKey(toolName, input = {}) {
   return `Bash(${words[0] ?? ''})`;
 }
 
+// Regla equivalente para --allowedTools de Claude Code (para guardarla en config.json).
+export function ruleToAllowed(rule) {
+  if (rule.startsWith('Bash(exacto:')) return `Bash(${rule.slice('Bash(exacto:'.length, -1)})`;
+  const m = rule.match(/^Bash\((.+)\)$/);
+  if (m) return `Bash(${m[1]}:*)`;
+  return rule;
+}
+
 // Texto corto para el botón "Siempre ..." del juego.
 export function ruleLabel(rule) {
   return rule.startsWith('Bash(exacto:') ? 'este comando' : rule;
@@ -38,6 +46,7 @@ export class PermissionBroker {
     this.seq = 0;
     this.onAsk = () => {};
     this.onResolved = () => {};
+    this.onPersist = () => {};
   }
 
   async start() {
@@ -89,14 +98,15 @@ export class PermissionBroker {
     });
   }
 
-  // decision: 'y' (sí), 'a' (siempre en esta sesión), 'n' (no), 'timeout', 'cancel'
+  // decision: 'y' (sí), 'a' (esta sesión del puente), 'p' (siempre, se guarda), 'n' (no), 'timeout', 'cancel'
   answer(id, decision) {
     const p = this.pending.get(id);
     if (!p) return false;
     this.pending.delete(id);
     clearTimeout(p.timer);
-    const allow = decision === 'y' || decision === 'a';
-    if (decision === 'a') this.always.add(ruleKey(p.toolName, p.input));
+    const allow = decision === 'y' || decision === 'a' || decision === 'p';
+    if (decision === 'a' || decision === 'p') this.always.add(ruleKey(p.toolName, p.input));
+    if (decision === 'p') this.onPersist(ruleToAllowed(ruleKey(p.toolName, p.input)));
     const message = {
       n: 'El usuario ha denegado el permiso desde el juego.',
       timeout: 'Nadie respondió a la petición de permiso a tiempo.',

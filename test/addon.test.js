@@ -273,3 +273,19 @@ test('aviso al terminar con la terminal cerrada, botón del minimapa y atajo', {
   run('SlashCmdList.CLAUDEXWOW("minimapa")');
   assert.equal(run('return tostring(ClaudeXWoWDB.minimap.hidden)'), 'true');
 });
+
+test('comandos del puente desde la terminal y respuesta "siempre"', { skip: !fengari && 'fengari no instalado' }, () => {
+  const run = makeLua();
+  run(fire);
+  assert.equal(run('return tostring(NS.IsBridgeCommand("proyecto tfg"))'), 'true');
+  assert.equal(run('return tostring(NS.IsBridgeCommand("modelo"))'), 'true');
+  assert.equal(run('return tostring(NS.IsBridgeCommand("explica esto"))'), 'false');
+  run('NS.Term.Event({ k = "status", project = "TFG", model = "opus", mode = "plan" })');
+  run('NS.Term.Event({ k = "ask", id = "4", name = "Bash", detail = "npm test", rule = "Bash(npm)" })');
+  const lines = run('return table.concat(ClaudeXWoWDB.lines, "\\n")');
+  assert.match(lines, /\|Haddon:cxw:p:4\|h/);
+  assert.match(lines, /Esta sesión/);
+  run('ANS = {}; NS.Answer = function(id, d) table.insert(ANS, id .. "=" .. d) end');
+  run('NS.Term.Event({ k = "answered", id = "99", decision = "p" })');
+  assert.match(run('return ClaudeXWoWDB.lines[#ClaudeXWoWDB.lines]'), /guardado/);
+});

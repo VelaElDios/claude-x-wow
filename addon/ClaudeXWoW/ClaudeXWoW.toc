@@ -2,7 +2,7 @@
 ## Title: Claude x WoW
 ## Notes: Tu Claude Code local dentro del juego. Proyecto no oficial.
 ## Author: Javier Vela
-## Version: 0.3.0
+## Version: 0.4.0
 ## SavedVariables: ClaudeXWoWDB
 
 Inbox.lua

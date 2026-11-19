@@ -121,15 +121,17 @@ function Term.Event(e)
 		local function link(d, label, color)
 			return "|Haddon:cxw:" .. d .. ":" .. e.id .. "|h" .. color .. "[ " .. label .. " ]|r|h"
 		end
-		addLine("  " .. link("y", "Sí", GREEN) .. "   " .. link("a", "Siempre " .. (e.rule or ""), GREEN) .. "   " .. link("n", "No", RED)
-			.. "   " .. DIM .. "o escribe s / siempre / n|r")
+		addLine("  " .. link("y", "Sí", GREEN) .. "  " .. link("a", "Esta sesión", GREEN) .. "  "
+			.. link("p", "Siempre: " .. (e.rule or ""), GREEN) .. "  " .. link("n", "No", RED))
+		addLine("  " .. DIM .. "o escribe s / sesion / siempre / n|r")
 		Term.SetBusy("Esperando tu permiso")
 		Term.Alert("Claude necesita tu permiso para usar " .. esc(e.name) .. ".")
 	elseif k == "answered" then
 		db().asks[e.id] = nil
 		local text = ({
 			y = GREEN .. "✓ Permitido|r",
-			a = GREEN .. "✓ Permitido siempre " .. (e.rule or "") .. " en esta sesión|r",
+			a = GREEN .. "✓ Permitido " .. (e.rule or "") .. " mientras el puente siga abierto|r",
+			p = GREEN .. "✓ Permitido siempre " .. (e.rule or "") .. " (guardado; /permisos para verlo)|r",
 			n = RED .. "✗ Denegado|r",
 			timeout = RED .. "✗ Sin respuesta a tiempo: denegado|r",
 			cancel = GRAY .. "✗ Cancelado|r",
@@ -141,7 +143,7 @@ function Term.Event(e)
 	elseif k == "status" then
 		Term.SetBusy(e.busy and (e.label or "Claude está trabajando") or nil)
 		if e.project then
-			Term.SetProject(e.project)
+			Term.SetProject(e.project, e.model, e.mode)
 		end
 		if e.asks then
 			wipe(db().asks)
@@ -214,9 +216,16 @@ function Term.SetConnected(ok)
 	end
 end
 
-function Term.SetProject(name)
+function Term.SetProject(name, model, mode)
 	if frame then
-		frame.project:SetText(GRAY .. "~/" .. esc(name) .. "|r")
+		local extra = ""
+		if model and model ~= "defecto" then
+			extra = extra .. DIM .. " · |r" .. GRAY .. esc(model) .. "|r"
+		end
+		if mode and mode ~= "editar" then
+			extra = extra .. DIM .. " · |r" .. YELLOW .. "modo " .. esc(mode) .. "|r"
+		end
+		frame.project:SetText(GRAY .. "~/" .. esc(name) .. "|r" .. extra)
 	end
 end
 
@@ -255,7 +264,7 @@ local function submit(text)
 	local cmd = text:lower()
 	local ask = Term.PendingAsk()
 	local answer = ask and ({ s = "y", ["si"] = "y", ["sí"] = "y", y = "y", yes = "y",
-		siempre = "a", a = "a", always = "a", n = "n", no = "n" })[cmd]
+		sesion = "a", ["sesión"] = "a", siempre = "p", always = "p", n = "n", no = "n" })[cmd]
 	if answer then
 		ns.Answer(ask, answer)
 	elseif cmd == "/clear" or cmd == "/limpiar" then
@@ -266,7 +275,7 @@ local function submit(text)
 		ns.Cancel()
 	elseif cmd == "/recargar" or cmd == "/reload" then
 		ReloadUI()
-	elseif cmd == "/sesiones" or cmd == "/dejar" or cmd:match("^/ver%s+%d+$") or cmd:match("^/usar%s+%d+$") then
+	elseif ns.IsBridgeCommand(cmd:sub(2)) then
 		ns.BridgeCommand(cmd:sub(2))
 	elseif cmd == "/estado" or cmd == "/ayuda" or cmd == "/help" then
 		ns.Command(cmd)
@@ -355,12 +364,12 @@ local function build()
 	out:SetHyperlinksEnabled(true)
 	out:SetScript("OnHyperlinkClick", function(_, link)
 		link = tostring(link)
-		local c, n = link:match("^addon:cxw:cmd:(%a+):(%d+)$")
+		local c, n = link:match("^addon:cxw:cmd:(%a+):([%w%-]+)$")
 		if c then
 			ns.BridgeCommand(c .. " " .. n)
 			return
 		end
-		local d, id = link:match("^addon:cxw:(%a+):(%d+)$")
+		local d, id = link:match("^addon:cxw:(%a):(%d+)$")
 		if d and db().asks[id] then
 			ns.Answer(id, d)
 		end
@@ -458,7 +467,7 @@ local function build()
 	footer = frame:CreateFontString(nil, "OVERLAY")
 	setFont(footer, 10)
 	footer:SetPoint("BOTTOMLEFT", 12, 8)
-	footer:SetText(DIM .. "enter enviar · ↑↓ historial · /sesiones · /nuevo · /stop · /clear · esc cerrar|r")
+	footer:SetText(DIM .. "enter enviar · ↑↓ historial · /ayuda · /sesiones · /proyecto · /modelo · /modo · /stop · esc cerrar|r")
 
 	-- Asa para redimensionar.
 	local grip = CreateFrame("Button", nil, frame)

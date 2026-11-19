@@ -86,6 +86,7 @@ switch (command) {
     }
     cfg.projectDir = path.resolve(values.project ?? cfg.projectDir ?? process.cwd());
     if (!fs.existsSync(cfg.projectDir)) fail(`No existe la carpeta del proyecto: ${cfg.projectDir}`);
+    cfg.projects = [...new Set([...(cfg.projects ?? []), cfg.projectDir])];
     saveConfig(cfg);
     console.log(`✔ WoW:      ${cfg.wowPath}`);
     console.log(`✔ Proyecto: ${cfg.projectDir}`);

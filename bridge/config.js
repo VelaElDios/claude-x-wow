@@ -10,6 +10,7 @@ export const ADDON_NAME = 'ClaudeXWoW';
 export const DEFAULT_CONFIG = {
   wowPath: null, // carpeta del cliente, p. ej. ...\World of Warcraft\_forever_
   projectDir: null, // carpeta donde trabaja Claude Code
+  projects: [], // proyectos usados (para /proyecto)
   permissionMode: 'acceptEdits', // default | acceptEdits | plan
   askPermissions: true, // preguntar en el juego lo que no esté permitido (si no, se deniega)
   allowedTools: [], // p. ej. ["Bash(npm test:*)"]

@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { saveConfig } from './config.js';
 import path from 'node:path';
 import { parseSavedVariables, toLua } from './lua.js';
 import { addonDir, savedVariablesFiles, loadState, saveState } from './config.js';
@@ -10,7 +11,11 @@ import { Follower, isPrompt, listSessions, tailEntries, timeAgo } from './sessio
 
 const LINK = (cmd, n, label) => `|Haddon:cxw:cmd:${cmd}:${n}|h|cff9cdcfe[${label}]|r|h`;
 
-export const VERSION = '0.3.0';
+export const MODES = { editar: 'acceptEdits', preguntar: 'default', plan: 'plan' };
+const MODE_NAME = Object.fromEntries(Object.entries(MODES).map(([k, v]) => [v, k]));
+export const MODELS = ['defecto', 'sonnet', 'opus', 'haiku'];
+
+export const VERSION = '0.4.0';
 const MAX_EVENTS = 400;
 const INBOX_EVENTS = 200;
 const HEARTBEAT_MS = 15_000;
@@ -50,6 +55,11 @@ export class Bridge {
       };
       permissions.onResolved = ({ id, decision, rule }) => {
         this.emit({ k: 'answered', id, decision, rule: escapeWow(ruleLabel(rule)) });
+      };
+      permissions.onPersist = (allowed) => {
+        this.cfg.allowedTools = [...new Set([...(this.cfg.allowedTools ?? []), allowed])];
+        this.saveCfg();
+        this.log(`Permiso guardado para siempre: ${allowed}`);
       };
     }
     this.k = signals ? signals.readK() : 0;
@@ -176,10 +186,9 @@ export class Bridge {
       const last = Number(fields[1]) || 0;
       this.live.pending = this.state.events.filter((e) => e.n > last).slice(-150);
       this.live.pending.push({
-        k: 'status',
+        ...this.statusEvent(),
         busy: !!this.current,
         label: this.current ? 'Claude está trabajando' : undefined,
-        project: path.basename(this.cfg.projectDir),
         asks: this.permissions ? [...this.permissions.pending.keys()] : [],
       });
     } else if (type === 'P') {
@@ -261,6 +270,53 @@ export class Bridge {
 
   // ---------------------------------------------------------------- sesiones de la terminal
 
+  saveCfg() {
+    try {
+      saveConfig(this.cfg);
+    } catch (err) {
+      this.warnOnce(err);
+    }
+  }
+
+  // Estado que se muestra en la barra de la terminal.
+  statusEvent() {
+    return {
+      k: 'status',
+      project: path.basename(this.cfg.projectDir),
+      model: this.cfg.model || 'defecto',
+      mode: MODE_NAME[this.cfg.permissionMode] ?? this.cfg.permissionMode,
+    };
+  }
+
+  // Carpetas hermanas del proyecto actual (y las que ya se hayan usado).
+  projectCandidates() {
+    const parent = path.dirname(this.cfg.projectDir);
+    let dirs = [];
+    try {
+      dirs = fs
+        .readdirSync(parent, { withFileTypes: true })
+        .filter((d) => d.isDirectory() && !d.name.startsWith('.'))
+        .map((d) => path.join(parent, d.name));
+    } catch {
+      // sin permisos
+    }
+    const all = [...new Set([...(this.cfg.projects ?? []), ...dirs])].filter((d) => fs.existsSync(d));
+    return all.sort((a, b) => path.basename(a).localeCompare(path.basename(b))).slice(0, 20);
+  }
+
+  switchProject(dir) {
+    const sessions = (this.state.sessionsByProject ??= {});
+    sessions[this.cfg.projectDir] = this.state.sessionId;
+    this.cfg.projectDir = dir;
+    this.cfg.projects = [...new Set([...(this.cfg.projects ?? []), dir])];
+    this.state.sessionId = sessions[dir] ?? null;
+    this.follow = null;
+    this.lastList = null;
+    this.saveCfg();
+    this.dirty = true;
+    this.log(`Proyecto: ${dir}`);
+  }
+
   pickSession(arg) {
     const n = Number(arg) || 1;
     const list = this.lastList ?? listSessions(this.cfg.projectDir);
@@ -319,7 +375,71 @@ export class Bridge {
       const warn = s.active ? ' Parece abierta en tu terminal: no escribas en las dos a la vez.' : '';
       return info(`Las próximas tareas continúan "${escapeWow(s.title.slice(0, 50))}".${warn}`);
     }
-    return info('Comandos: /sesiones, /ver N, /dejar, /usar N.');
+    if (name === 'proyecto') {
+      const list = this.projectCandidates();
+      if (!arg) {
+        const lines = [`|cffd97757Proyectos|r |cff8a8a8a(actual: ~/${escapeWow(project)})|r`];
+        list.forEach((d, i) => {
+          const mark = d === this.cfg.projectDir ? ' |cff6fcf73← actual|r' : `  ${LINK('proyecto', i + 1, 'usar')}`;
+          lines.push(`${i + 1}. ${escapeWow(path.basename(d))}${mark}`);
+        });
+        lines.push('|cff8a8a8a/proyecto N o /proyecto nombre para cambiar|r');
+        return this.emit({ k: 'block', text: lines.join('\n') });
+      }
+      if (this.current) return info('Espera a que termine la tarea actual (o usa /stop).');
+      const target = list[Number(arg) - 1] ?? list.find((d) => path.basename(d).toLowerCase() === arg);
+      if (!target) return info(`No encuentro el proyecto "${escapeWow(arg)}". Usa /proyecto para ver la lista.`);
+      this.switchProject(target);
+      this.emit(this.statusEvent());
+      return info(`Ahora trabajas en ~/${escapeWow(path.basename(target))}.` + (this.state.sessionId ? ' Sigues la conversación que tenías allí.' : ''));
+    }
+    if (name === 'modelo') {
+      if (!arg) {
+        const links = MODELS.map((m) => LINK('modelo', m, m)).join(' ');
+        return this.emit({ k: 'block', text: `|cffd97757Modelo|r: ${escapeWow(this.cfg.model || 'defecto')}\n${links}` });
+      }
+      if (!MODELS.includes(arg)) return info(`Modelos: ${MODELS.join(', ')}.`);
+      this.cfg.model = arg === 'defecto' ? null : arg;
+      this.saveCfg();
+      this.emit(this.statusEvent());
+      return info(`Modelo: ${arg}. Se usa desde la siguiente tarea.`);
+    }
+    if (name === 'modo') {
+      if (!arg) {
+        const links = Object.keys(MODES).map((m) => LINK('modo', m, m)).join(' ');
+        return this.emit({
+          k: 'block',
+          text: [
+            `|cffd97757Modo|r: ${MODE_NAME[this.cfg.permissionMode] ?? this.cfg.permissionMode}`,
+            '|cff8a8a8aeditar: edita archivos sin preguntar · preguntar: te pregunta también las ediciones · plan: solo planifica, no toca nada|r',
+            links,
+          ].join('\n'),
+        });
+      }
+      if (!MODES[arg]) return info(`Modos: ${Object.keys(MODES).join(', ')}.`);
+      this.cfg.permissionMode = MODES[arg];
+      this.saveCfg();
+      this.emit(this.statusEvent());
+      return info(`Modo: ${arg}. Se usa desde la siguiente tarea.`);
+    }
+    if (name === 'permisos') {
+      const saved = this.cfg.allowedTools ?? [];
+      const session = [...(this.permissions?.always ?? [])].map(ruleLabel);
+      const lines = ['|cffd97757Permisos guardados|r'];
+      if (saved.length === 0) lines.push('|cff8a8a8a(ninguno)|r');
+      saved.forEach((r, i) => lines.push(`${i + 1}. ${escapeWow(r)}  ${LINK('olvidar', i + 1, 'olvidar')}`));
+      if (session.length) lines.push(`|cff8a8a8aSolo esta sesión del puente: ${escapeWow(session.join(', '))}|r`);
+      return this.emit({ k: 'block', text: lines.join('\n') });
+    }
+    if (name === 'olvidar') {
+      const saved = this.cfg.allowedTools ?? [];
+      const i = Number(arg) - 1;
+      if (!saved[i]) return info('Ese permiso no existe. Usa /permisos para ver la lista.');
+      const [removed] = saved.splice(i, 1);
+      this.saveCfg();
+      return info(`Permiso olvidado: ${escapeWow(removed)}. Se aplica desde la siguiente tarea.`);
+    }
+    return info('Comandos: /sesiones, /ver N, /usar N, /dejar, /proyecto, /modelo, /modo, /permisos.');
   }
 
   pollFollow() {

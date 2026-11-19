@@ -7,7 +7,7 @@
 
 local ADDON_NAME, ns = ...
 
-ns.VERSION = "0.3.0"
+ns.VERSION = "0.4.0"
 local floor = math.floor
 local CHUNK = 440 -- bytes de texto por trama (deja sitio a la cabecera)
 local NO_BRIDGE_AFTER = 12 -- segundos sin acuse = el puente no ve la tira
@@ -184,7 +184,17 @@ function ns.Answer(id, decision)
 	queueFrame("A|" .. id .. "|" .. decision)
 end
 
--- Comandos que entiende el puente: sesiones, ver N, dejar, usar N.
+-- Comandos que entiende el puente.
+local BRIDGE_COMMANDS = {
+	sesiones = true, ver = true, dejar = true, usar = true,
+	proyecto = true, modelo = true, modo = true, permisos = true, olvidar = true,
+}
+
+function ns.IsBridgeCommand(text)
+	local name = (text or ""):match("^(%a+)")
+	return name ~= nil and BRIDGE_COMMANDS[name] == true
+end
+
 function ns.BridgeCommand(text)
 	if not ns.LiveAvailable() then
 		ns.Info("Ese comando necesita el canal en directo.")
@@ -216,6 +226,10 @@ local function printHelp()
 	ns.Info("  /claude stop      para la tarea actual")
 	ns.Info("  /claude recargar  recarga (modo lento / reiniciar canal)")
 	ns.Info("  /claude sesiones  tus sesiones de la terminal (/ver N, /usar N)")
+	ns.Info("  /claude proyecto  cambia de carpeta de trabajo")
+	ns.Info("  /claude modelo    elige modelo (sonnet, opus, haiku)")
+	ns.Info("  /claude modo      editar / preguntar / plan")
+	ns.Info("  /claude permisos  permisos guardados (y /olvidar N)")
 	ns.Info("  /claude estado    estado de la conexión")
 	ns.Info("  /claude minimapa  muestra/oculta el botón del minimapa")
 	ns.Info("  Atajo de teclado: Menú > Atajos de teclado > AddOns > Claude x WoW")
@@ -236,7 +250,7 @@ function ns.Command(msg)
 		ns.Term.Clear()
 	elseif cmd == "minimapa" then
 		ns.Minimap.Toggle()
-	elseif cmd == "sesiones" or cmd == "dejar" or cmd:match("^ver %d+$") or cmd:match("^usar %d+$") then
+	elseif ns.IsBridgeCommand(cmd) then
 		ns.Term.Show()
 		ns.BridgeCommand(cmd)
 	elseif cmd == "estado" then

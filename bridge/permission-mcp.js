@@ -8,7 +8,7 @@ import readline from 'node:readline';
 
 const PORT = Number(process.env.CXW_PORT);
 const TOKEN = process.env.CXW_TOKEN;
-const VERSION = '0.3.0';
+const VERSION = '0.4.0';
 
 function send(msg) {
   process.stdout.write(JSON.stringify({ jsonrpc: '2.0', ...msg }) + '\n');
