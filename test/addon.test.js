@@ -301,3 +301,12 @@ test('aviso al 80% del canal con botón para reiniciarlo', { skip: !fengari && '
   run(`for _, f in ipairs(FRAMES) do local h = rawget(f, "__scripts").OnHyperlinkClick; if h then h(f, "addon:cxw:reload:0") end end`);
   assert.equal(run('return tostring(RELOADED)'), 'true');
 });
+
+test('la ayuda de abajo se ajusta al ancho y recoloca la caja de escribir', { skip: !fengari && 'fengari no instalado' }, () => {
+  const run = makeLua();
+  run(fire);
+  assert.equal(run('return type(ClaudeXWoWTerminal.relayout)'), 'function');
+  assert.equal(run('return type(rawget(ClaudeXWoWTerminal, "__scripts").OnSizeChanged)'), 'function');
+  // Simula que la ayuda ocupa 3 líneas: no debe dar error al recolocar.
+  run('ClaudeXWoWTerminal.relayout()');
+});

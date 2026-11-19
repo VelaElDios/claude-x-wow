@@ -335,6 +335,9 @@ local function build()
 	frame.project = bar:CreateFontString(nil, "OVERLAY")
 	setFont(frame.project, 11)
 	frame.project:SetPoint("LEFT", title, "RIGHT", 12, 0)
+	frame.project:SetPoint("RIGHT", bar, "RIGHT", -130, 0)
+	frame.project:SetJustifyH("LEFT")
+	frame.project:SetWordWrap(false)
 
 	statusDot = bar:CreateFontString(nil, "OVERLAY")
 	setFont(statusDot, 11)
@@ -395,6 +398,7 @@ local function build()
 	setFont(busyText, SIZE)
 	busyText:SetPoint("BOTTOMLEFT", 12, 58)
 	busyText:SetJustifyH("LEFT")
+	busyText:SetWordWrap(false) -- una línea; si no cabe se recorta con "..."
 
 	local tick, i = 0, 1
 	frame:SetScript("OnUpdate", function(_, elapsed)
@@ -468,10 +472,32 @@ local function build()
 		input:SetFocus()
 	end)
 
+	-- Ayuda de abajo: ocupa el ancho de la ventana y salta de línea si no cabe.
 	footer = frame:CreateFontString(nil, "OVERLAY")
 	setFont(footer, 10)
 	footer:SetPoint("BOTTOMLEFT", 12, 8)
+	footer:SetPoint("BOTTOMRIGHT", -22, 8) -- deja sitio al asa de redimensionar
+	footer:SetJustifyH("LEFT")
+	footer:SetWordWrap(true)
 	footer:SetText(DIM .. "enter enviar · ↑↓ historial · /ayuda · /sesiones · /proyecto · /modelo · /modo · /stop · esc cerrar|r")
+
+	-- Recoloca la caja, la línea de estado y la salida según lo que ocupe la ayuda.
+	local function relayout()
+		local fh = math.max(12, footer:GetStringHeight() or 12)
+		local boxBottom = 8 + fh + 6
+		box:ClearAllPoints()
+		box:SetPoint("BOTTOMLEFT", 10, boxBottom)
+		box:SetPoint("BOTTOMRIGHT", -10, boxBottom)
+		busyText:ClearAllPoints()
+		busyText:SetPoint("BOTTOMLEFT", 12, boxBottom + 34)
+		busyText:SetPoint("RIGHT", frame, "RIGHT", -12, 0)
+		out:ClearAllPoints()
+		out:SetPoint("TOPLEFT", 12, -34)
+		out:SetPoint("BOTTOMRIGHT", -12, boxBottom + 52)
+	end
+	frame:SetScript("OnSizeChanged", relayout)
+	frame.relayout = relayout
+	relayout()
 
 	-- Asa para redimensionar.
 	local grip = CreateFrame("Button", nil, frame)
