@@ -446,6 +446,7 @@ export class Bridge {
       const i = Number(arg) - 1;
       if (!saved[i]) return info('Ese permiso no existe. Usa /permisos para ver la lista.');
       const [removed] = saved.splice(i, 1);
+      this.permissions?.forget(removed);
       this.saveCfg();
       return info(`Permiso olvidado: ${escapeWow(removed)}. Se aplica desde la siguiente tarea.`);
     }

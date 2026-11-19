@@ -84,6 +84,7 @@ test('"Siempre" guarda el permiso en config.json; /permisos y /olvidar', async (
   assert.match(last().text, /1\. Bash\(npm:\*\)/);
   cmd('olvidar 1');
   assert.deepEqual(cfg.allowedTools, []);
+  assert.equal(permissions.always.size, 0, 'olvidar también lo quita de esta sesión');
   bridge.stop();
 });
 

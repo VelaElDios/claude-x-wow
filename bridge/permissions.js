@@ -43,6 +43,7 @@ export class PermissionBroker {
     this.token = crypto.randomBytes(16).toString('hex');
     this.pending = new Map();
     this.always = new Set();
+    this.persisted = new Map(); // regla guardada en allowedTools -> clave de 'siempre'
     this.seq = 0;
     this.onAsk = () => {};
     this.onResolved = () => {};
@@ -106,7 +107,11 @@ export class PermissionBroker {
     clearTimeout(p.timer);
     const allow = decision === 'y' || decision === 'a' || decision === 'p';
     if (decision === 'a' || decision === 'p') this.always.add(ruleKey(p.toolName, p.input));
-    if (decision === 'p') this.onPersist(ruleToAllowed(ruleKey(p.toolName, p.input)));
+    if (decision === 'p') {
+      const key = ruleKey(p.toolName, p.input);
+      this.persisted.set(ruleToAllowed(key), key);
+      this.onPersist(ruleToAllowed(key));
+    }
     const message = {
       n: 'El usuario ha denegado el permiso desde el juego.',
       timeout: 'Nadie respondió a la petición de permiso a tiempo.',
@@ -115,6 +120,13 @@ export class PermissionBroker {
     p.resolve(allow ? { behavior: 'allow' } : { behavior: 'deny', message });
     this.onResolved({ id, decision, toolName: p.toolName, rule: ruleKey(p.toolName, p.input) });
     return true;
+  }
+
+  // Quita una regla guardada también de lo permitido en esta sesión.
+  forget(allowed) {
+    const key = this.persisted.get(allowed);
+    if (key) this.always.delete(key);
+    this.persisted.delete(allowed);
   }
 
   cancelAll() {

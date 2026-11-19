@@ -20,6 +20,8 @@
 |---|---|
 | ![Terminal sessions](docs/img/sesiones.png) | ![Warp reply inside WoW](docs/img/warp-en-wow.png) |
 
+![Permissions from the game](docs/img/permisos.png)
+
 ## Install
 
 **Requirements:** Windows, [Claude Code](https://docs.claude.com/en/docs/claude-code) installed and logged in, Node.js 18+, WoW Forever.

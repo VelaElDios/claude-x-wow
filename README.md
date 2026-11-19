@@ -20,6 +20,8 @@
 |---|---|
 | ![Sesiones de la terminal](docs/img/sesiones.png) | ![Respuesta de Warp en el WoW](docs/img/warp-en-wow.png) |
 
+![Permisos desde el juego](docs/img/permisos.png)
+
 ## Instalación
 
 **Requisitos:** Windows, [Claude Code](https://docs.claude.com/en/docs/claude-code) instalado y con sesión iniciada (`claude` en la terminal), Node.js 18+ y WoW Forever.
