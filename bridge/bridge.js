@@ -5,7 +5,7 @@ import { addonDir, savedVariablesFiles, loadState, saveState } from './config.js
 import { runClaudeStream } from './claude.js';
 import { markdownToWow, describeTool, describeResult, escapeWow } from './format.js';
 import { MOD, slotFor } from './signals.js';
-import { PROMPT_TOOL } from './permissions.js';
+import { PROMPT_TOOL, ruleLabel } from './permissions.js';
 import { Follower, isPrompt, listSessions, tailEntries, timeAgo } from './sessions.js';
 
 const LINK = (cmd, n, label) => `|Haddon:cxw:cmd:${cmd}:${n}|h|cff9cdcfe[${label}]|r|h`;
@@ -46,10 +46,10 @@ export class Bridge {
       permissions.onAsk = ({ id, toolName, input, rule }) => {
         const d = describeTool(toolName, input, this.cfg.projectDir);
         this.log(`  ? Permiso para ${toolName}(${d.detail}): responde en el juego`);
-        this.emit({ k: 'ask', id, name: d.name, detail: d.detail, rule: escapeWow(rule) });
+        this.emit({ k: 'ask', id, name: d.name, detail: d.detail, rule: escapeWow(ruleLabel(rule)) });
       };
       permissions.onResolved = ({ id, decision, rule }) => {
-        this.emit({ k: 'answered', id, decision, rule: escapeWow(rule) });
+        this.emit({ k: 'answered', id, decision, rule: escapeWow(ruleLabel(rule)) });
       };
     }
     this.k = signals ? signals.readK() : 0;

@@ -8,14 +8,24 @@ import { HOME_DIR } from './config.js';
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const PROMPT_TOOL = 'mcp__cxw__approve';
 
-// Clave de "permitir siempre (esta sesión)": para Bash, el primer comando
-// (p. ej. "npm"); para el resto, el nombre de la herramienta.
+// Clave de "permitir siempre (esta sesión)".
+// - Bash simple ("npm test"): el programa, sin asignaciones delante -> Bash(npm).
+// - Bash compuesto (&&, ;, |, $(), redirecciones...): solo ese comando exacto,
+//   para que "siempre" no deje colar otra cosa detrás.
+// - Resto de herramientas: el nombre de la herramienta.
+const SHELL_OPERATORS = /&&|\|\||[;|&<>`\n]|\$\(/;
+
 export function ruleKey(toolName, input = {}) {
-  if (toolName === 'Bash') {
-    const first = String(input.command ?? '').trim().split(/\s+/)[0] ?? '';
-    return `Bash(${first})`;
-  }
-  return toolName;
+  if (toolName !== 'Bash') return toolName;
+  const command = String(input.command ?? '').trim();
+  if (SHELL_OPERATORS.test(command)) return `Bash(exacto:${command})`;
+  const words = command.split(/\s+/).filter((w) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(w));
+  return `Bash(${words[0] ?? ''})`;
+}
+
+// Texto corto para el botón "Siempre ..." del juego.
+export function ruleLabel(rule) {
+  return rule.startsWith('Bash(exacto:') ? 'este comando' : rule;
 }
 
 // Recibe las preguntas de permiso del servidor MCP y espera a que respondas.

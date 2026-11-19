@@ -7,7 +7,7 @@ import path from 'node:path';
 import readline from 'node:readline';
 
 process.env.CLAUDE_X_WOW_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'cxw-perm-'));
-const { PermissionBroker, ruleKey } = await import('../bridge/permissions.js');
+const { PermissionBroker, ruleKey, ruleLabel } = await import('../bridge/permissions.js');
 
 // Lanza el servidor MCP tal y como lo haría Claude Code (con --mcp-config).
 function startMcp(configPath) {
@@ -28,9 +28,35 @@ function startMcp(configPath) {
   return { call, child };
 }
 
-test('ruleKey', () => {
+test('ruleKey: simple por programa, compuesto solo exacto', () => {
   assert.equal(ruleKey('Bash', { command: 'npm test -- --watch' }), 'Bash(npm)');
+  assert.equal(ruleKey('Bash', { command: 'NODE_ENV=test npm test' }), 'Bash(npm)');
   assert.equal(ruleKey('WebFetch', { url: 'x' }), 'WebFetch');
+  const compuesto = 'OUT=$(mktemp -d) && javac -d "$OUT" Noria.java';
+  assert.equal(ruleKey('Bash', { command: compuesto }), `Bash(exacto:${compuesto})`);
+  for (const peligroso of ['npm test && rm -rf src', 'npm test; rm -rf src', 'npm test | sh', 'cat x > y', 'echo `rm x`', 'a\nrm x']) {
+    assert.match(ruleKey('Bash', { command: peligroso }), /^Bash\(exacto:/, peligroso);
+  }
+  assert.equal(ruleLabel(ruleKey('Bash', { command: compuesto })), 'este comando');
+  assert.equal(ruleLabel('Bash(npm)'), 'Bash(npm)');
+});
+
+test('"siempre" en un comando compuesto no autoriza otro que empiece igual', async () => {
+  const broker = await new PermissionBroker().start();
+  let asks = 0;
+  broker.onAsk = (q) => {
+    asks++;
+    setTimeout(() => broker.answer(q.id, asks === 1 ? 'a' : 'n'), 5);
+  };
+  const first = await broker.ask('Bash', { command: 'OUT=$(mktemp -d) && javac x.java' });
+  assert.equal(first.behavior, 'allow');
+  const same = await broker.ask('Bash', { command: 'OUT=$(mktemp -d) && javac x.java' });
+  assert.equal(same.behavior, 'allow');
+  assert.equal(asks, 1, 'el mismo comando exacto ya no pregunta');
+  const sneaky = await broker.ask('Bash', { command: 'OUT=$(mktemp -d) && rm -rf src' });
+  assert.equal(sneaky.behavior, 'deny');
+  assert.equal(asks, 2, 'uno distinto vuelve a preguntar');
+  broker.stop();
 });
 
 test('el servidor MCP pregunta al puente y devuelve la decisión', async () => {
