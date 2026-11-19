@@ -9,4 +9,5 @@ Inbox.lua
 Pixel.lua
 Slots.lua
 Terminal.lua
+Minimap.lua
 Core.lua

@@ -1,0 +1,5 @@
+<Bindings>
+	<Binding name="CLAUDEXWOW_TOGGLE" header="CLAUDEXWOW" category="ADDONS">
+		ClaudeXWoW_Toggle()
+	</Binding>
+</Bindings>

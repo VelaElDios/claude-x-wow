@@ -217,6 +217,8 @@ local function printHelp()
 	ns.Info("  /claude recargar  recarga (modo lento / reiniciar canal)")
 	ns.Info("  /claude sesiones  tus sesiones de la terminal (/ver N, /usar N)")
 	ns.Info("  /claude estado    estado de la conexión")
+	ns.Info("  /claude minimapa  muestra/oculta el botón del minimapa")
+	ns.Info("  Atajo de teclado: Menú > Atajos de teclado > AddOns > Claude x WoW")
 end
 
 function ns.Command(msg)
@@ -232,6 +234,8 @@ function ns.Command(msg)
 		ReloadUI()
 	elseif cmd == "clear" or cmd == "limpiar" then
 		ns.Term.Clear()
+	elseif cmd == "minimapa" then
+		ns.Minimap.Toggle()
 	elseif cmd == "sesiones" or cmd == "dejar" or cmd:match("^ver %d+$") or cmd:match("^usar %d+$") then
 		ns.Term.Show()
 		ns.BridgeCommand(cmd)
@@ -274,6 +278,7 @@ f:SetScript("OnEvent", function(self, event, arg1)
 		ns.db = db
 	elseif event == "PLAYER_LOGIN" then
 		ns.Term.Init()
+		ns.Minimap.Init()
 
 		-- Lo que llegó mientras recargábamos (respaldo).
 		local inbox = ClaudeXWoW_Inbox
@@ -281,7 +286,9 @@ f:SetScript("OnEvent", function(self, event, arg1)
 			for _, id in ipairs(inbox.received or {}) do
 				removeFromOutbox(id)
 			end
+			ns.Term.replaying = true
 			ns.ApplyEvents(inbox.events)
+			ns.Term.replaying = false
 			if inbox.busy then
 				ns.Term.SetBusy("Claude está trabajando")
 			end

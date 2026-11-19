@@ -55,7 +55,16 @@ function CreateFrame(kind, name, parent, template)
   return f
 end
 UIParent = CreateFrame("Frame")
+Minimap = CreateFrame("Frame")
+Minimap.GetWidth = function() return 140 end
+Minimap.GetCenter = function() return 100, 100 end
+Minimap.GetEffectiveScale = function() return 1 end
+GameTooltip = CreateFrame("Frame")
+function GetCursorPosition() return 0, 0 end
+CHAT = {}
+DEFAULT_CHAT_FRAME_MSGS = CHAT
 DEFAULT_CHAT_FRAME = CreateFrame("Frame")
+DEFAULT_CHAT_FRAME.AddMessage = function(self, text) table.insert(CHAT, text) end
 function GetPhysicalScreenSize() return 1920, 1080 end
 function GetScreenHeight() return 768 end
 function GetTime() return 100 end
@@ -244,4 +253,23 @@ test('los mensajes de sesiones de la terminal no encienden el indicador de "Pens
   assert.equal(run('return tostring(#BUSY)'), '0');
   run('NS.Term.Event({ k = "result", text = "ok" })');
   assert.equal(run('return BUSY[1]'), 'Pensando');
+});
+
+test('aviso al terminar con la terminal cerrada, botón del minimapa y atajo', { skip: !fengari && 'fengari no instalado' }, () => {
+  const run = makeLua();
+  run(fire);
+  assert.equal(run('return tostring(ClaudeXWoWMinimapButton ~= nil)'), 'true');
+  assert.equal(run('return type(ClaudeXWoW_Toggle)'), 'function');
+  assert.equal(run('return BINDING_NAME_CLAUDEXWOW_TOGGLE'), 'Abrir/cerrar la terminal');
+  // Terminal cerrada: al terminar avisa por el chat.
+  run('ClaudeXWoWTerminal:Hide(); CHAT = {}; DEFAULT_CHAT_FRAME.AddMessage = function(self, t) table.insert(CHAT, t) end');
+  run('NS.Term.Event({ k = "done", summary = "Hecho en 3s" })');
+  assert.match(run('return table.concat(CHAT, "\\n")'), /Claude ha terminado \(Hecho en 3s\)/);
+  // Terminal abierta: no molesta.
+  run('ClaudeXWoWTerminal:Show(); CHAT = {}');
+  run('NS.Term.Event({ k = "done", summary = "Hecho en 3s" })');
+  assert.equal(run('return tostring(#CHAT)'), '0');
+  // /claude minimapa lo oculta.
+  run('SlashCmdList.CLAUDEXWOW("minimapa")');
+  assert.equal(run('return tostring(ClaudeXWoWDB.minimap.hidden)'), 'true');
 });

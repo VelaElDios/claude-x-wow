@@ -20,16 +20,65 @@ function inline(line) {
     .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, `$1 ${C.dim}($2)|r`);
 }
 
+// Quita el Markdown en línea para medir el ancho visible de un texto.
+const plain = (s) =>
+  String(s)
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '$1');
+
+const isTableRow = (l) => /^\s*\|.*\|\s*$/.test(l);
+const isTableSep = (l) => /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(l);
+const cells = (l) => l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
+
+// Tabla Markdown -> columnas alineadas (la terminal usa fuente monoespaciada).
+function renderTable(rows, maxWidth = 110) {
+  const data = rows.map(cells);
+  const cols = Math.max(...data.map((r) => r.length));
+  const widths = Array.from({ length: cols }, (_, c) => Math.max(3, ...data.map((r) => plain(r[c] ?? '').length)));
+  // Si no cabe, recortamos las columnas más anchas.
+  const sep = 3;
+  while (widths.reduce((a, b) => a + b, 0) + sep * (cols - 1) > maxWidth) {
+    const i = widths.indexOf(Math.max(...widths));
+    if (widths[i] <= 8) break;
+    widths[i]--;
+  }
+  const fit = (text, w) => {
+    const p = plain(text);
+    if (p.length > w) return escapeWow(p.slice(0, w - 1) + '…');
+    return inline(text) + ' '.repeat(w - p.length);
+  };
+  const line = (r, head) =>
+    r.length === 0
+      ? ''
+      : widths.map((w, c) => (head ? `${C.bold}${fit(plain(r[c] ?? ''), w)}|r` : fit(r[c] ?? '', w))).join(`${C.dim} │ |r`);
+  const out = [line(data[0], true), `${C.dim}${widths.map((w) => '─'.repeat(w)).join('─┼─')}|r`];
+  for (const r of data.slice(1)) out.push(line(r, false));
+  return out;
+}
+
 export function markdownToWow(md) {
   const out = [];
   let inCode = false;
-  for (const raw of String(md ?? '').replace(/\r/g, '').split('\n')) {
+  const lines = String(md ?? '').replace(/\r/g, '').split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
     if (/^\s*```/.test(raw)) {
       inCode = !inCode;
       continue;
     }
     if (inCode) {
       out.push(`${C.block}${escapeWow(raw).replace(/\t/g, '  ')}|r`);
+      continue;
+    }
+    // Tabla: cabecera + separador + filas.
+    if (isTableRow(raw) && isTableSep(lines[i + 1] ?? '')) {
+      const rows = [raw];
+      i += 2;
+      while (i < lines.length && isTableRow(lines[i])) rows.push(lines[i++]);
+      i--;
+      out.push(...renderTable(rows));
       continue;
     }
     const h = raw.match(/^#{1,6}\s+(.*)$/);

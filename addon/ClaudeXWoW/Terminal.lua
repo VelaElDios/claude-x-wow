@@ -99,10 +99,12 @@ function Term.Event(e)
 		Term.SetBusy(nil)
 		addLine(" ")
 		addLine(ORANGE .. "✶|r " .. GRAY .. (e.summary or "Hecho") .. "|r")
+		Term.Notify("Claude ha terminado (" .. (e.summary or "hecho") .. "). Abre la terminal con /claude.")
 	elseif k == "error" then
 		Term.SetBusy(nil)
 		addLine(" ")
 		addBlock(e.text, RED .. "● Error:|r ", "  ", RED)
+		Term.Notify("Claude ha tenido un error. Abre la terminal con /claude.")
 	elseif k == "info" then
 		Term.Info(e.text)
 	elseif k == "prompt" then
@@ -162,6 +164,23 @@ function Term.Alert(text)
 	DEFAULT_CHAT_FRAME:AddMessage(ORANGE .. "Claude x WoW:|r " .. text)
 	if PlaySound and SOUNDKIT and SOUNDKIT.TELL_MESSAGE then
 		pcall(PlaySound, SOUNDKIT.TELL_MESSAGE)
+	end
+end
+
+-- Aviso discreto (chat + sonido) solo si la terminal está cerrada.
+function Term.Notify(text)
+	if frame and frame:IsShown() then
+		return
+	end
+	if Term.replaying then
+		return
+	end
+	DEFAULT_CHAT_FRAME:AddMessage(ORANGE .. "Claude x WoW:|r " .. text)
+	if PlaySound and SOUNDKIT and SOUNDKIT.TELL_MESSAGE then
+		pcall(PlaySound, SOUNDKIT.TELL_MESSAGE)
+	end
+	if ns.Minimap then
+		ns.Minimap.Pulse()
 	end
 end
 
@@ -494,5 +513,15 @@ function Term.Toggle()
 	frame:SetShown(not frame:IsShown())
 	if frame:IsShown() then
 		input:SetFocus()
+		if ns.Minimap then
+			ns.Minimap.Pulse(false)
+		end
 	end
 end
+
+-- Para el atajo de teclado (Bindings.xml).
+function ClaudeXWoW_Toggle()
+	Term.Toggle()
+end
+BINDING_HEADER_CLAUDEXWOW = "Claude x WoW"
+BINDING_NAME_CLAUDEXWOW_TOGGLE = "Abrir/cerrar la terminal"
