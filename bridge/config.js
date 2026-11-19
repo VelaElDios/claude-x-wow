@@ -11,6 +11,7 @@ export const DEFAULT_CONFIG = {
   wowPath: null, // carpeta del cliente, p. ej. ...\World of Warcraft\_forever_
   projectDir: null, // carpeta donde trabaja Claude Code
   permissionMode: 'acceptEdits', // default | acceptEdits | plan
+  askPermissions: true, // preguntar en el juego lo que no esté permitido (si no, se deniega)
   allowedTools: [], // p. ej. ["Bash(npm test:*)"]
   disallowedTools: [],
   model: null,

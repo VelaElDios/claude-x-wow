@@ -199,3 +199,20 @@ test('al cerrar el WoW se restauran las señales', () => {
   assert.equal(bridge.k, 0);
   bridge.stop();
 });
+
+test('permisos: la pregunta llega al juego y la respuesta A|id|y la desbloquea', async () => {
+  const { cfg } = setup('perm');
+  const { PermissionBroker } = await import('../bridge/permissions.js');
+  const permissions = await new PermissionBroker().start();
+  const slots = fakeSlots();
+  const bridge = new Bridge(cfg, { runner: fakeRunner([]), slots, signals: fakeSignals(), permissions, log: () => {} });
+  bridge.onFrame(frame(3, 1, 0, 'H|0'));
+  const pending = permissions.ask('Bash', { command: 'npm test' });
+  const ask = bridge.state.events.find((e) => e.k === 'ask');
+  assert.equal(ask.name, 'Bash');
+  assert.equal(ask.detail, 'npm test');
+  bridge.onFrame(frame(3, 2, 0, `A|${ask.id}|y`));
+  assert.equal((await pending).behavior, 'allow');
+  assert.ok(bridge.state.events.some((e) => e.k === 'answered' && e.decision === 'y'));
+  bridge.stop();
+});

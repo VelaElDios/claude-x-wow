@@ -15,6 +15,7 @@ local DIM = "|cff5f5f5f"
 local WHITE = "|cffffffff"
 local GREEN = "|cff6fcf73"
 local RED = "|cffff6b6b"
+local YELLOW = "|cffffd166"
 local BASE = { 0.85, 0.85, 0.85 }
 
 local SPINNER = { "·", "•", "●", "•" }
@@ -100,10 +101,41 @@ function Term.Event(e)
 		addBlock(e.text, RED .. "● Error:|r ", "  ", RED)
 	elseif k == "info" then
 		Term.Info(e.text)
+	elseif k == "ask" then
+		local asks = db().asks
+		asks[e.id] = true
+		addLine(" ")
+		addLine(YELLOW .. "?|r " .. WHITE .. "Claude quiere usar " .. esc(e.name) .. "|r" .. GRAY .. "(" .. (e.detail or "") .. ")|r")
+		local function link(d, label, color)
+			return "|Haddon:cxw:" .. d .. ":" .. e.id .. "|h" .. color .. "[ " .. label .. " ]|r|h"
+		end
+		addLine("  " .. link("y", "Sí", GREEN) .. "   " .. link("a", "Siempre " .. (e.rule or ""), GREEN) .. "   " .. link("n", "No", RED)
+			.. "   " .. DIM .. "o escribe s / siempre / n|r")
+		Term.SetBusy("Esperando tu permiso")
+		Term.Alert("Claude necesita tu permiso para usar " .. esc(e.name) .. ".")
+	elseif k == "answered" then
+		db().asks[e.id] = nil
+		local text = ({
+			y = GREEN .. "✓ Permitido|r",
+			a = GREEN .. "✓ Permitido siempre " .. (e.rule or "") .. " en esta sesión|r",
+			n = RED .. "✗ Denegado|r",
+			timeout = RED .. "✗ Sin respuesta a tiempo: denegado|r",
+			cancel = GRAY .. "✗ Cancelado|r",
+		})[e.decision] or e.decision
+		addLine("  " .. DIM .. "└|r " .. text)
+		if e.decision == "y" or e.decision == "a" then
+			Term.SetBusy("Pensando")
+		end
 	elseif k == "status" then
 		Term.SetBusy(e.busy and (e.label or "Claude está trabajando") or nil)
 		if e.project then
 			Term.SetProject(e.project)
+		end
+		if e.asks then
+			wipe(db().asks)
+			for _, id in ipairs(e.asks) do
+				db().asks[id] = true
+			end
 		end
 	end
 end
@@ -111,6 +143,28 @@ end
 ------------------------------------------------------------------------
 -- Estado
 ------------------------------------------------------------------------
+
+-- Llama la atención aunque la terminal esté cerrada.
+function Term.Alert(text)
+	if frame and not frame:IsShown() then
+		frame:Show()
+	end
+	DEFAULT_CHAT_FRAME:AddMessage(ORANGE .. "Claude x WoW:|r " .. text)
+	if PlaySound and SOUNDKIT and SOUNDKIT.TELL_MESSAGE then
+		pcall(PlaySound, SOUNDKIT.TELL_MESSAGE)
+	end
+end
+
+-- Última petición de permiso sin responder (o nil).
+function Term.PendingAsk()
+	local last
+	for id in pairs(db().asks) do
+		if not last or tonumber(id) > tonumber(last) then
+			last = id
+		end
+	end
+	return last
+end
 
 function Term.SetBusy(label)
 	busy = label ~= nil
@@ -170,7 +224,12 @@ local function submit(text)
 		end
 	end
 	local cmd = text:lower()
-	if cmd == "/clear" or cmd == "/limpiar" then
+	local ask = Term.PendingAsk()
+	local answer = ask and ({ s = "y", ["si"] = "y", ["sí"] = "y", y = "y", yes = "y",
+		siempre = "a", a = "a", always = "a", n = "n", no = "n" })[cmd]
+	if answer then
+		ns.Answer(ask, answer)
+	elseif cmd == "/clear" or cmd == "/limpiar" then
 		Term.Clear()
 	elseif cmd == "/nuevo" or cmd == "/new" then
 		ns.Reset()
@@ -262,6 +321,13 @@ local function build()
 	out:SetMaxLines(MAX_LINES)
 	out:SetSpacing(2)
 	out:SetInsertMode(SCROLLING_MESSAGE_FRAME_INSERT_MODE_BOTTOM or "BOTTOM")
+	out:SetHyperlinksEnabled(true)
+	out:SetScript("OnHyperlinkClick", function(_, link)
+		local d, id = tostring(link):match("^addon:cxw:(%a+):(%d+)$")
+		if d and db().asks[id] then
+			ns.Answer(id, d)
+		end
+	end)
 	out:EnableMouseWheel(true)
 	out:SetScript("OnMouseWheel", function(self, delta)
 		local n = IsShiftKeyDown() and 10 or 3

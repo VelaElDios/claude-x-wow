@@ -35,12 +35,14 @@ function kill(child) {
 // Lanza Claude Code en modo no interactivo con salida en streaming.
 // onMessage recibe cada mensaje JSON (system, assistant, user, result).
 // Devuelve { promise, cancel }.
-export function runClaudeStream({ prompt, cwd, sessionId, cfg, onMessage }) {
+export function runClaudeStream({ prompt, cwd, sessionId, cfg, onMessage, permissions }) {
   const args = ['-p', '--output-format', 'stream-json', '--verbose', '--permission-mode', cfg.permissionMode];
   if (sessionId) args.push('--resume', sessionId);
   if (cfg.model) args.push('--model', cfg.model);
   if (cfg.allowedTools?.length) args.push('--allowedTools', cfg.allowedTools.join(','));
   if (cfg.disallowedTools?.length) args.push('--disallowedTools', cfg.disallowedTools.join(','));
+  // Lo que no esté permitido se pregunta en el juego (ver permissions.js).
+  if (permissions) args.push('--mcp-config', permissions.configPath, '--permission-prompt-tool', permissions.tool);
 
   const { cmd, shell } = resolveClaude();
   let child;

@@ -10,6 +10,7 @@ import { Bridge, VERSION } from './bridge.js';
 import { PixelReader } from './capture.js';
 import { SlotPool } from './slots.js';
 import { Signals } from './signals.js';
+import { PermissionBroker } from './permissions.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ADDON_SRC = path.join(here, '..', 'addon', ADDON_NAME);
@@ -108,7 +109,8 @@ switch (command) {
       console.log('✔ Señales del canal creadas. Cierra y abre el WoW para que las detecte.');
     }
     console.log('Consejo: abre el puente ANTES que el WoW, así el canal en directo arranca limpio.');
-    const bridge = new Bridge(cfg, { reader, slots, signals });
+    const permissions = cfg.askPermissions ? await new PermissionBroker().start() : null;
+    const bridge = new Bridge(cfg, { reader, slots, signals, permissions });
     process.on('uncaughtException', (err) => console.error('Error inesperado (el puente sigue funcionando):', err.message));
     bridge.start();
     process.on('SIGINT', () => {

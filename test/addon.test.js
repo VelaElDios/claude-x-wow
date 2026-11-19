@@ -194,3 +194,25 @@ test('una ranura escrita por el puente llega a la terminal', { skip: !fengari &&
   assert.equal(run('return tostring(ClaudeXWoWStrip.shown)'), 'true');
   assert.equal(run('return tostring(#ClaudeXWoWDB.outbox)'), '1');
 });
+
+test('peticiones de permiso: se ven en la terminal y se responden escribiendo o con clic', { skip: !fengari && 'fengari no instalado' }, () => {
+  const run = makeLua();
+  run(fire);
+  const nonce = Number(run('return tostring(NS.nonce)'));
+  const events = [{ k: 'ask', n: 1, id: '7', name: 'Bash', detail: 'npm test', rule: 'Bash(npm)' }];
+  run(`SLOT_DATA["ClaudeXWoW_S001"] = assert(load(${luaLong(`ClaudeXWoW_OnSlot(${nonce}, 1, ${toLua(events)})`)})); ${publish(1)}`);
+  run('NS.Slots.Poll()');
+  const lines = run('return table.concat(ClaudeXWoWDB.lines, "\\n")');
+  assert.match(lines, /Claude quiere usar Bash/);
+  assert.match(lines, /\|Haddon:cxw:y:7\|h/);
+  assert.equal(run('return tostring(ClaudeXWoWDB.asks["7"])'), 'true');
+  // Escribir "s" en la terminal responde "sí" (trama A|7|y).
+  run('NS.Answer("7", "y")');
+  assert.equal(run('return tostring(ClaudeXWoWStrip.shown)'), 'true');
+  // Llega la confirmación del puente.
+  const done = [{ k: 'answered', n: 2, id: '7', decision: 'y', rule: 'Bash(npm)' }];
+  run(`SLOT_DATA["ClaudeXWoW_S002"] = assert(load(${luaLong(`ClaudeXWoW_OnSlot(${nonce}, 2, ${toLua(done)})`)})); ${publish(2)}`);
+  run('NS.Slots.Poll()');
+  assert.equal(run('return tostring(ClaudeXWoWDB.asks["7"])'), 'nil');
+  assert.match(run('return ClaudeXWoWDB.lines[#ClaudeXWoWDB.lines]'), /Permitido/);
+});

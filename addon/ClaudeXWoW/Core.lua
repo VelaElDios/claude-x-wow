@@ -7,7 +7,7 @@
 
 local ADDON_NAME, ns = ...
 
-ns.VERSION = "0.2.0"
+ns.VERSION = "0.3.0"
 local floor = math.floor
 local CHUNK = 440 -- bytes de texto por trama (deja sitio a la cabecera)
 local NO_BRIDGE_AFTER = 12 -- segundos sin acuse = el puente no ve la tira
@@ -174,6 +174,16 @@ function ns.Cancel()
 	end
 end
 
+-- Respuesta a una petición de permiso: y (sí), a (siempre), n (no).
+function ns.Answer(id, decision)
+	if not ns.LiveAvailable() then
+		ns.Info("Para responder hace falta el canal en directo.")
+		return
+	end
+	ns.Term.Info("respondiendo...")
+	queueFrame("A|" .. id .. "|" .. decision)
+end
+
 function ns.Status()
 	local inbox = ClaudeXWoW_Inbox or {}
 	return {
@@ -246,6 +256,7 @@ f:SetScript("OnEvent", function(self, event, arg1)
 		db.lastEvent = db.lastEvent or 0
 		db.inputHistory = db.inputHistory or {}
 		db.window = db.window or {}
+		db.asks = db.asks or {}
 		db.history, db.seen = nil, nil -- restos de la v0.1
 		ns.db = db
 	elseif event == "PLAYER_LOGIN" then

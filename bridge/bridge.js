@@ -5,8 +5,9 @@ import { addonDir, savedVariablesFiles, loadState, saveState } from './config.js
 import { runClaudeStream } from './claude.js';
 import { markdownToWow, describeTool, describeResult, escapeWow } from './format.js';
 import { MOD, slotFor } from './signals.js';
+import { PROMPT_TOOL } from './permissions.js';
 
-export const VERSION = '0.2.0';
+export const VERSION = '0.3.0';
 const MAX_EVENTS = 400;
 const INBOX_EVENTS = 200;
 const HEARTBEAT_MS = 15_000;
@@ -31,12 +32,23 @@ function splitFields(buf, n) {
 }
 
 export class Bridge {
-  constructor(cfg, { runner = runClaudeStream, reader = null, slots = null, signals = null, log = defaultLog, now = Date.now } = {}) {
+  constructor(cfg, { runner = runClaudeStream, reader = null, slots = null, signals = null, permissions = null, log = defaultLog, now = Date.now } = {}) {
     this.cfg = cfg;
     this.runner = runner;
     this.reader = reader;
     this.slots = slots;
     this.signals = signals;
+    this.permissions = permissions;
+    if (permissions) {
+      permissions.onAsk = ({ id, toolName, input, rule }) => {
+        const d = describeTool(toolName, input, this.cfg.projectDir);
+        this.log(`  ? Permiso para ${toolName}(${d.detail}): responde en el juego`);
+        this.emit({ k: 'ask', id, name: d.name, detail: d.detail, rule: escapeWow(rule) });
+      };
+      permissions.onResolved = ({ id, decision, rule }) => {
+        this.emit({ k: 'answered', id, decision, rule: escapeWow(rule) });
+      };
+    }
     this.k = signals ? signals.readK() : 0;
     this.log = log;
     this.now = now;
@@ -165,6 +177,7 @@ export class Bridge {
         busy: !!this.current,
         label: this.current ? 'Claude está trabajando' : undefined,
         project: path.basename(this.cfg.projectDir),
+        asks: this.permissions ? [...this.permissions.pending.keys()] : [],
       });
     } else if (type === 'P') {
       const { fields, rest } = splitFields(buf, 4);
@@ -184,6 +197,9 @@ export class Bridge {
       this.receive({ id: splitFields(buf, 2).fields[1], type: 'reset' });
     } else if (type === 'X') {
       this.receive({ id: splitFields(buf, 2).fields[1], type: 'cancel' });
+    } else if (type === 'A') {
+      const [, reqId, decision] = splitFields(buf, 3).fields;
+      this.permissions?.answer(reqId, decision);
     }
   }
 
@@ -238,6 +254,7 @@ export class Bridge {
   }
 
   cancel() {
+    this.permissions?.cancelAll();
     if (this.current) {
       this.log('Parando la tarea actual');
       this.current.handle.cancel();
@@ -253,6 +270,7 @@ export class Bridge {
         sessionId: this.state.sessionId,
         cfg: this.cfg,
         onMessage: (m) => this.onClaude(m),
+        permissions: this.permissions ? { configPath: this.permissions.configPath, tool: PROMPT_TOOL } : null,
       });
       this.current = { item, handle };
       return handle.promise;
@@ -370,5 +388,6 @@ export class Bridge {
     this.timers.forEach(clearInterval);
     this.reader?.stop();
     this.cancel();
+    this.permissions?.stop();
   }
 }
