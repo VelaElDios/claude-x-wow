@@ -7,7 +7,7 @@
 
 local ADDON_NAME, ns = ...
 
-ns.VERSION = "0.4.0"
+ns.VERSION = "0.4.1"
 local floor = math.floor
 local CHUNK = 440 -- bytes de texto por trama (deja sitio a la cabecera)
 local NO_BRIDGE_AFTER = 12 -- segundos sin acuse = el puente no ve la tira

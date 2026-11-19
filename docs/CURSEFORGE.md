@@ -1,5 +1,7 @@
 # Publicar Claude x WoW en CurseForge
 
+Proyecto: **Claude Terminal** · ID `1817243`
+
 El addon se publica solo con subir una etiqueta (`git tag v0.3.0 && git push --tags`):
 GitHub Actions pasa los tests, empaqueta `addon/ClaudeXWoW` y lo sube a GitHub
 Releases y a CurseForge. Para lo de CurseForge hay que configurarlo una vez:

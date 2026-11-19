@@ -15,7 +15,7 @@ export const MODES = { editar: 'acceptEdits', preguntar: 'default', plan: 'plan'
 const MODE_NAME = Object.fromEntries(Object.entries(MODES).map(([k, v]) => [v, k]));
 export const MODELS = ['defecto', 'sonnet', 'opus', 'haiku'];
 
-export const VERSION = '0.4.0';
+export const VERSION = '0.4.1';
 const MAX_EVENTS = 400;
 const INBOX_EVENTS = 200;
 const HEARTBEAT_MS = 15_000;
