@@ -1,6 +1,6 @@
 {
   "name": "claude-x-wow",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Habla con Claude Code desde World of Warcraft. Puente entre el addon ClaudeXWoW y tu Claude Code local. Proyecto no oficial.",
   "type": "module",
   "bin": {
@@ -17,7 +17,15 @@
   "engines": {
     "node": ">=18"
   },
-  "keywords": ["world-of-warcraft", "wow-addon", "claude-code", "ai-agent"],
+  "keywords": [
+    "world-of-warcraft",
+    "wow-addon",
+    "claude-code",
+    "ai-agent"
+  ],
   "author": "Javier Vela",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "fengari": "0.1.4"
+  }
 }

@@ -16,7 +16,9 @@ export const DEFAULT_CONFIG = {
   model: null,
   timeoutMinutes: 15,
   pollMs: 1000,
-  maxReplyChars: 6000,
+  live: true, // canal en directo (píxeles + ranuras). false = solo modo /reload
+  slotPool: 300, // ranuras PC -> juego por sesión del juego
+  liveIntervalMs: 1000, // cada cuánto se manda un lote de eventos en directo
 };
 
 function readJson(file, fallback) {
@@ -43,7 +45,7 @@ export function saveConfig(cfg) {
 }
 
 export function loadState() {
-  return { sessionId: null, processed: [], messages: [], ...readJson(STATE_PATH, {}) };
+  return { sessionId: null, processed: [], events: [], eventSeq: 0, received: [], ...readJson(STATE_PATH, {}) };
 }
 
 export function saveState(state) {

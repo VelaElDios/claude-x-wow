@@ -1,10 +1,12 @@
 ## Interface: 16001
 ## Title: Claude x WoW
-## Notes: Habla con tu Claude Code local desde el juego. Proyecto no oficial.
+## Notes: Tu Claude Code local dentro del juego. Proyecto no oficial.
 ## Author: Javier Vela
-## Version: 0.1.0
+## Version: 0.2.0
 ## SavedVariables: ClaudeXWoWDB
 
 Inbox.lua
+Pixel.lua
+Slots.lua
+Terminal.lua
 Core.lua
-UI.lua

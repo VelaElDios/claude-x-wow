@@ -1,7 +1,8 @@
 import { spawn, execFileSync } from 'node:child_process';
+import readline from 'node:readline';
 
 // Busca el ejecutable de Claude Code. En Windows preferimos claude.exe para
-// poder lanzarlo sin pasar por cmd.exe (más seguro y sin líos de comillas).
+// lanzarlo sin pasar por cmd.exe (más seguro y sin líos de comillas).
 function resolveClaude() {
   if (process.env.CLAUDE_BIN) return { cmd: process.env.CLAUDE_BIN, shell: false };
   if (process.platform !== 'win32') return { cmd: 'claude', shell: false };
@@ -19,27 +20,60 @@ function resolveClaude() {
 
 const quoteCmd = (a) => `"${String(a).replace(/"/g, '""')}"`;
 
-function runOnce({ prompt, cwd, sessionId, cfg }) {
-  const args = ['-p', '--output-format', 'json', '--permission-mode', cfg.permissionMode];
+function kill(child) {
+  if (process.platform === 'win32' && child.pid) {
+    try {
+      execFileSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+      return;
+    } catch {
+      // ya terminó
+    }
+  }
+  child.kill();
+}
+
+// Lanza Claude Code en modo no interactivo con salida en streaming.
+// onMessage recibe cada mensaje JSON (system, assistant, user, result).
+// Devuelve { promise, cancel }.
+export function runClaudeStream({ prompt, cwd, sessionId, cfg, onMessage }) {
+  const args = ['-p', '--output-format', 'stream-json', '--verbose', '--permission-mode', cfg.permissionMode];
   if (sessionId) args.push('--resume', sessionId);
   if (cfg.model) args.push('--model', cfg.model);
   if (cfg.allowedTools?.length) args.push('--allowedTools', cfg.allowedTools.join(','));
   if (cfg.disallowedTools?.length) args.push('--disallowedTools', cfg.disallowedTools.join(','));
 
   const { cmd, shell } = resolveClaude();
-  return new Promise((resolve) => {
-    const child = shell
+  let child;
+  let cancelled = false;
+
+  const promise = new Promise((resolve) => {
+    child = shell
       ? spawn(quoteCmd(cmd), args.map(quoteCmd), { cwd, shell: true, windowsHide: true })
       : spawn(cmd, args, { cwd, windowsHide: true });
 
-    let stdout = '';
     let stderr = '';
+    let result = null;
+    let session = sessionId;
     const timer = setTimeout(() => {
       stderr += `\nTiempo agotado (${cfg.timeoutMinutes} min).`;
-      child.kill();
+      kill(child);
     }, cfg.timeoutMinutes * 60_000);
 
-    child.stdout.on('data', (d) => (stdout += d));
+    readline.createInterface({ input: child.stdout }).on('line', (line) => {
+      let msg;
+      try {
+        msg = JSON.parse(line);
+      } catch {
+        return;
+      }
+      if (msg.session_id) session = msg.session_id;
+      if (msg.type === 'result') result = msg;
+      try {
+        onMessage?.(msg);
+      } catch (e) {
+        console.error(e);
+      }
+    });
     child.stderr.on('data', (d) => (stderr += d));
     child.on('error', (err) => {
       clearTimeout(timer);
@@ -47,36 +81,29 @@ function runOnce({ prompt, cwd, sessionId, cfg }) {
     });
     child.on('close', (code) => {
       clearTimeout(timer);
-      // La salida JSON es un único objeto; cogemos la última línea que parsee.
-      const lines = stdout.trim().split(/\r?\n/).reverse();
-      for (const line of lines) {
-        try {
-          const data = JSON.parse(line);
-          return resolve({
-            ok: !data.is_error,
-            text: data.result ?? '',
-            sessionId: data.session_id ?? sessionId,
-            cost: data.total_cost_usd,
-            error: data.is_error ? data.result || data.subtype || 'Error de Claude Code' : null,
-            code,
-          });
-        } catch {
-          // sigue buscando
-        }
+      if (cancelled) return resolve({ ok: false, cancelled: true, sessionId: session });
+      if (result) {
+        return resolve({
+          ok: !result.is_error,
+          sessionId: result.session_id ?? session,
+          cost: result.total_cost_usd,
+          durationMs: result.duration_ms,
+          turns: result.num_turns,
+          denials: result.permission_denials ?? [],
+          error: result.is_error ? String(result.result || result.subtype || 'Error de Claude Code') : null,
+        });
       }
-      resolve({ ok: false, code, error: (stderr || stdout || `Claude Code terminó con código ${code}`).trim() });
+      resolve({ ok: false, sessionId: session, error: (stderr || `Claude Code terminó con código ${code}`).trim() });
     });
 
     child.stdin.end(prompt);
   });
-}
 
-export async function runClaude({ prompt, cwd, sessionId, cfg }) {
-  let res = await runOnce({ prompt, cwd, sessionId, cfg });
-  // Si la sesión ya no existe, empezamos una nueva.
-  if (!res.ok && sessionId && /no conversation found|session/i.test(res.error || '')) {
-    res = await runOnce({ prompt, cwd, sessionId: null, cfg });
-    if (res.ok) res.newSession = true;
-  }
-  return res;
+  return {
+    promise,
+    cancel() {
+      cancelled = true;
+      if (child) kill(child);
+    },
+  };
 }
