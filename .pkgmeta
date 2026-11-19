@@ -1,0 +1,15 @@
+# Empaquetado del addon para CurseForge (BigWigsMods/packager).
+# Solo se publica la carpeta addon/ClaudeXWoW; el puente se instala con npm.
+package-as: ClaudeXWoW
+
+move-folders:
+  ClaudeXWoW/addon/ClaudeXWoW: ClaudeXWoW
+
+ignore:
+  - bridge
+  - test
+  - docs
+  - node_modules
+  - package.json
+  - package-lock.json
+  - .github

@@ -1,0 +1,31 @@
+# Al subir una etiqueta vX.Y.Z: pasa los tests, empaqueta el addon y lo publica
+# en GitHub Releases y (si está configurado) en CurseForge.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Tests
+        run: npm ci || npm install && npm test
+
+      - name: Empaquetar y publicar
+        uses: BigWigsMods/packager@v2
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}

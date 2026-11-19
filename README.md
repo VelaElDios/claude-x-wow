@@ -88,7 +88,7 @@ En la lista de addons verás muchos "Claude x WoW - canal ###": son las ranuras 
 - [x] Terminal estilo Claude Code con respuestas en directo (v0.2)
 - [x] Ver y continuar desde el juego tus sesiones de la terminal (v0.3)
 - [x] Aprobar permisos desde el juego (v0.3)
-- [ ] Publicación en CurseForge
+- [ ] Publicación en CurseForge (preparada: ver [docs/CURSEFORGE.md](docs/CURSEFORGE.md))
 
 ## Desarrollo
 
