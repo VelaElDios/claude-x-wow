@@ -225,8 +225,7 @@ export class Bridge {
     if (!live || !this.slots || !this.signals) return;
     const hasAck = live.ack !== null;
     if (!hasAck && live.pending.length === 0) return;
-    const minGap = hasAck ? 400 : Math.max(400, this.cfg.liveIntervalMs ?? 1000);
-    if (this.now() - live.lastWrite < minGap) return;
+    if (this.now() - live.lastWrite < (hasAck ? 400 : this.liveInterval())) return;
     live.lastWrite = this.now();
 
     const k = (this.k + 1) % MOD;
@@ -239,9 +238,20 @@ export class Bridge {
       return;
     }
     this.k = k;
+    live.used = (live.used ?? 0) + 1;
     live.pending.splice(0, events.length);
     if (hasAck) live.lastAck = this.now();
     live.ack = null;
+  }
+
+  // Cada lote gasta un canal. Cuantos más llevamos gastados en esta sesión del
+  // juego, más agrupamos los eventos para que el canal dure más.
+  liveInterval() {
+    const base = Math.max(400, this.cfg.liveIntervalMs ?? 1000);
+    const used = (this.live?.used ?? 0) / Math.max(1, this.slots?.size ?? 1);
+    if (used < 0.5) return base;
+    if (used < 0.8) return base * 2;
+    return base * 4;
   }
 
   // ---------------------------------------------------------------- Claude Code

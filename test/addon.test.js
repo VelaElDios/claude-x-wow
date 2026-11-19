@@ -289,3 +289,15 @@ test('comandos del puente desde la terminal y respuesta "siempre"', { skip: !fen
   run('NS.Term.Event({ k = "answered", id = "99", decision = "p" })');
   assert.match(run('return ClaudeXWoWDB.lines[#ClaudeXWoWDB.lines]'), /guardado/);
 });
+
+test('aviso al 80% del canal con botón para reiniciarlo', { skip: !fengari && 'fengari no instalado' }, () => {
+  const run = makeLua();
+  run(fire);
+  // 5 canales: el aviso sale al cargar el 4º (80%).
+  for (let k = 1; k <= 4; k++) run(`SLOT_DATA["ClaudeXWoW_S00${k}"] = function() end; ${publish(k)}; NS.Slots.Poll()`);
+  const lines = run('return table.concat(ClaudeXWoWDB.lines, "\\n")');
+  assert.match(lines, /Canal en directo al 80%/);
+  assert.match(lines, /\|Haddon:cxw:reload:0\|h/);
+  run(`for _, f in ipairs(FRAMES) do local h = rawget(f, "__scripts").OnHyperlinkClick; if h then h(f, "addon:cxw:reload:0") end end`);
+  assert.equal(run('return tostring(RELOADED)'), 'true');
+});

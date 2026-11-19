@@ -114,16 +114,22 @@ function Slots.Exhausted()
 	return Slots.ok and Slots.loads >= Slots.pool
 end
 
+local RELOAD_LINK = "|Haddon:cxw:reload:0|h|cffd97757[ Reiniciar canal ]|r|h"
+
 local function loadNext()
 	if Slots.loads >= Slots.pool then
 		if not Slots.warnedEmpty then
 			Slots.warnedEmpty = true
-			ns.Info("Canal en directo agotado en esta sesión. Escribe |cffffffff/reload|r cuando acabe la tarea para reiniciarlo.")
+			ns.Info("Canal en directo agotado. Lo que falte no se pierde: llegará al reiniciar. " .. RELOAD_LINK)
 		end
 		return false
 	end
 	Slots.k = (Slots.k + 1) % MOD
 	Slots.loads = Slots.loads + 1
+	if not Slots.warnedLow and Slots.loads >= math.floor(Slots.pool * 0.8) then
+		Slots.warnedLow = true
+		ns.Info(string.format("Canal en directo al 80%% (%d/%d). Cuando Claude acabe, reinícialo sin perder nada: ", Slots.loads, Slots.pool) .. RELOAD_LINK)
+	end
 	local name = slotName(slotFor(Slots.k))
 	local loaded, reason = LoadAddOn(name)
 	if not loaded then

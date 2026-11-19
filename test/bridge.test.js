@@ -216,3 +216,35 @@ test('permisos: la pregunta llega al juego y la respuesta A|id|y la desbloquea',
   assert.ok(bridge.state.events.some((e) => e.k === 'answered' && e.decision === 'y'));
   bridge.stop();
 });
+
+test('cuantos más canales gastados, más se agrupan los eventos', () => {
+  const { cfg } = setup('interval');
+  const slots = fakeSlots();
+  slots.size = 100;
+  const bridge = new Bridge({ ...cfg, liveIntervalMs: 1000 }, { runner: fakeRunner([]), slots, signals: fakeSignals(), log: () => {} });
+  bridge.onFrame(frame(5, 1, 0, 'H|0'));
+  bridge.live.used = 10;
+  assert.equal(bridge.liveInterval(), 1000);
+  bridge.live.used = 60;
+  assert.equal(bridge.liveInterval(), 2000);
+  bridge.live.used = 90;
+  assert.equal(bridge.liveInterval(), 4000);
+  bridge.stop();
+});
+
+test('tras /reload el juego recibe lo que se perdió mientras el canal estaba agotado', () => {
+  const { cfg } = setup('catchup');
+  const slots = fakeSlots();
+  const bridge = new Bridge(cfg, { runner: fakeRunner([]), slots, signals: fakeSignals(), log: () => {} });
+  bridge.onFrame(frame(1, 1, 0, 'H|0'));
+  const base = bridge.state.events.length;
+  for (let i = 0; i < 5; i++) bridge.emit({ k: 'info', text: `evento ${i}` });
+  const lastSeen = bridge.state.events[base + 1].n; // el juego solo vio los dos primeros
+  bridge.onFrame(frame(2, 1, 0, `H|${lastSeen}`)); // nueva sesión del juego
+  bridge.live.lastWrite = 0;
+  bridge.flushLive();
+  const src = slots.writes.at(-1).src;
+  for (let i = 2; i < 5; i++) assert.match(src, new RegExp(`evento ${i}`));
+  assert.doesNotMatch(src, /evento 1"/);
+  bridge.stop();
+});

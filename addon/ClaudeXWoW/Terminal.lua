@@ -364,6 +364,10 @@ local function build()
 	out:SetHyperlinksEnabled(true)
 	out:SetScript("OnHyperlinkClick", function(_, link)
 		link = tostring(link)
+		if link == "addon:cxw:reload:0" then
+			ReloadUI() -- un clic cuenta como acción del jugador
+			return
+		end
 		local c, n = link:match("^addon:cxw:cmd:(%a+):([%w%-]+)$")
 		if c then
 			ns.BridgeCommand(c .. " " .. n)
