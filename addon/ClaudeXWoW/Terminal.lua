@@ -87,10 +87,14 @@ function Term.Event(e)
 		addLine(" ")
 		local detail = (e.detail and e.detail ~= "") and ("(" .. GRAY .. e.detail .. "|r)") or ""
 		addLine(GREEN .. "●|r " .. WHITE .. esc(e.name) .. "|r" .. detail)
-		Term.SetBusy(e.label or ("Usando " .. esc(e.name)))
+		if not e.ro then
+			Term.SetBusy(e.label or ("Usando " .. esc(e.name)))
+		end
 	elseif k == "result" then
 		addBlock(e.text, "  " .. DIM .. "└|r ", "    ", e.err and RED or GRAY)
-		Term.SetBusy("Pensando")
+		if not e.ro then
+			Term.SetBusy("Pensando")
+		end
 	elseif k == "done" then
 		Term.SetBusy(nil)
 		addLine(" ")

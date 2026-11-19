@@ -72,7 +72,8 @@ test('comandos /sesiones, /ver, seguir en directo y /usar desde el juego', () =>
   bridge.onFrame(frame(3, 'C|x-2|ver 1'));
   const kinds = bridge.state.events.map((e) => e.k);
   assert.ok(kinds.includes('prompt'));
-  assert.ok(bridge.state.events.some((e) => e.k === 'tool' && e.detail === 'NoriaSemaforos.java'));
+  assert.ok(bridge.state.events.some((e) => e.k === 'tool' && e.detail === 'NoriaSemaforos.java' && e.ro));
+  assert.ok(bridge.state.events.filter((e) => ['tool', 'result', 'text'].includes(e.k)).every((e) => e.ro), 'el historial no debe tocar el indicador');
   assert.ok(bridge.state.events.some((e) => e.k === 'text' && /\|cffffffffSemaphore\|r/.test(e.text)));
 
   // Lo que escribas en la terminal aparece en el juego.

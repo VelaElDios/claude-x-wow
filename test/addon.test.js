@@ -234,3 +234,14 @@ test('sesiones: bloques, prompts de la terminal y enlaces clicables', { skip: !f
   run(`for _, f in ipairs(FRAMES) do local h = rawget(f, "__scripts").OnHyperlinkClick; if h then h(f, "addon:cxw:cmd:ver:1") end end`);
   assert.match(run('return SHOWN[#SHOWN]'), /^C\|\d+-\d+\|ver 1$/);
 });
+
+test('los mensajes de sesiones de la terminal no encienden el indicador de "Pensando"', { skip: !fengari && 'fengari no instalado' }, () => {
+  const run = makeLua();
+  run(fire);
+  run('BUSY = {}; local orig = NS.Term.SetBusy; NS.Term.SetBusy = function(l) table.insert(BUSY, tostring(l)); return orig(l) end');
+  run('NS.Term.Event({ k = "tool", name = "Read", detail = "x", ro = true })');
+  run('NS.Term.Event({ k = "result", text = "ok", ro = true })');
+  assert.equal(run('return tostring(#BUSY)'), '0');
+  run('NS.Term.Event({ k = "result", text = "ok" })');
+  assert.equal(run('return BUSY[1]'), 'Pensando');
+});

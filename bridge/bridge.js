@@ -243,17 +243,17 @@ export class Bridge {
     if (msg.type === 'assistant') {
       for (const c of content) {
         if (c.type === 'text' && c.text?.trim()) {
-          this.emit({ k: 'text', text: markdownToWow(c.text) });
+          this.emit({ k: 'text', text: markdownToWow(c.text), ro: quiet || undefined });
         } else if (c.type === 'tool_use') {
           const d = describeTool(c.name, c.input, this.cfg.projectDir);
           if (!quiet) this.log(`  ● ${c.name}(${d.detail})`);
-          this.emit({ k: 'tool', name: d.name, detail: d.detail, label: d.label });
+          this.emit({ k: 'tool', name: d.name, detail: d.detail, label: d.label, ro: quiet || undefined });
         }
       }
     } else if (msg.type === 'user') {
       for (const c of content) {
         if (c.type === 'tool_result') {
-          this.emit({ k: 'result', text: describeResult(c.content, c.is_error), err: !!c.is_error });
+          this.emit({ k: 'result', text: describeResult(c.content, c.is_error), err: !!c.is_error, ro: quiet || undefined });
         }
       }
     }
