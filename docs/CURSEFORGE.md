@@ -50,7 +50,9 @@ lo que hace (qué archivos lee, qué edita, qué comandos ejecuta) mientras sigu
 jugando.
 
 - Terminal propia con `/claude`, historial, colores y respuestas en directo.
-- Permisos desde el juego: botones Sí / Siempre / No.
+- Permisos desde el juego: botones Sí / Esta sesión / Siempre / No.
+- Cambia de proyecto, modelo o modo sin salir del juego (`/proyecto`, `/modelo`, `/modo`).
+- Botón en el minimapa, atajo de teclado y aviso cuando Claude termina.
 - Sigue o continúa tus sesiones de Claude Code de la terminal (`/sesiones`).
 - Claude Code se ejecuta en **tu PC**, en la carpeta que elijas. El addon solo
   usa APIs documentadas: no lee memoria del juego ni pulsa teclas por ti.
@@ -60,3 +62,13 @@ y el puente: `npm install -g github:VelaElDios/claude-x-wow`, después
 `claude-x-wow setup --project <tu carpeta>` y `claude-x-wow start` (antes de abrir el WoW).
 
 *Proyecto no oficial. No está afiliado ni respaldado por Anthropic ni por Blizzard Entertainment.*
+
+---
+
+## CurseForge page (English summary)
+
+**Claude x WoW** puts your **Claude Code** inside the game: a Claude Code–style terminal where you send tasks for your project and watch live what it does (files read, edits, commands) while you keep playing. Permission buttons in game, follow/continue your terminal sessions, switch project/model/mode, minimap button and notifications. Claude Code runs on **your PC** in the folder you choose; the addon only uses documented APIs.
+
+**Requires** Windows, Claude Code, Node.js 18+ and the bridge: `npm install -g github:VelaElDios/claude-x-wow`. In-game UI is in Spanish.
+
+*Unofficial project, not affiliated with Anthropic or Blizzard Entertainment.*
