@@ -184,6 +184,15 @@ function ns.Answer(id, decision)
 	queueFrame("A|" .. id .. "|" .. decision)
 end
 
+-- Comandos que entiende el puente: sesiones, ver N, dejar, usar N.
+function ns.BridgeCommand(text)
+	if not ns.LiveAvailable() then
+		ns.Info("Ese comando necesita el canal en directo.")
+		return
+	end
+	queueFrame("C|" .. newId() .. "|" .. text)
+end
+
 function ns.Status()
 	local inbox = ClaudeXWoW_Inbox or {}
 	return {
@@ -206,6 +215,7 @@ local function printHelp()
 	ns.Info("  /claude nuevo     conversación nueva")
 	ns.Info("  /claude stop      para la tarea actual")
 	ns.Info("  /claude recargar  recarga (modo lento / reiniciar canal)")
+	ns.Info("  /claude sesiones  tus sesiones de la terminal (/ver N, /usar N)")
 	ns.Info("  /claude estado    estado de la conexión")
 end
 
@@ -222,6 +232,9 @@ function ns.Command(msg)
 		ReloadUI()
 	elseif cmd == "clear" or cmd == "limpiar" then
 		ns.Term.Clear()
+	elseif cmd == "sesiones" or cmd == "dejar" or cmd:match("^ver %d+$") or cmd:match("^usar %d+$") then
+		ns.Term.Show()
+		ns.BridgeCommand(cmd)
 	elseif cmd == "estado" then
 		local s = ns.Status()
 		ns.Info(string.format("directo: %s | puente: %s | usados: %d/%d (lista %d, puente %d) | señales: %s | K=%d | proyecto: %s",

@@ -6,6 +6,9 @@ import { runClaudeStream } from './claude.js';
 import { markdownToWow, describeTool, describeResult, escapeWow } from './format.js';
 import { MOD, slotFor } from './signals.js';
 import { PROMPT_TOOL } from './permissions.js';
+import { Follower, isPrompt, listSessions, tailEntries, timeAgo } from './sessions.js';
+
+const LINK = (cmd, n, label) => `|Haddon:cxw:cmd:${cmd}:${n}|h|cff9cdcfe[${label}]|r|h`;
 
 export const VERSION = '0.3.0';
 const MAX_EVENTS = 400;
@@ -197,6 +200,9 @@ export class Bridge {
       this.receive({ id: splitFields(buf, 2).fields[1], type: 'reset' });
     } else if (type === 'X') {
       this.receive({ id: splitFields(buf, 2).fields[1], type: 'cancel' });
+    } else if (type === 'C') {
+      const { rest } = splitFields(buf, 2);
+      this.command(rest.toString('utf8'));
     } else if (type === 'A') {
       const [, reqId, decision] = splitFields(buf, 3).fields;
       this.permissions?.answer(reqId, decision);
@@ -231,7 +237,7 @@ export class Bridge {
 
   // ---------------------------------------------------------------- Claude Code
 
-  onClaude(msg) {
+  onClaude(msg, { quiet = false } = {}) {
     const content = msg.message?.content;
     if (!Array.isArray(content)) return;
     if (msg.type === 'assistant') {
@@ -240,7 +246,7 @@ export class Bridge {
           this.emit({ k: 'text', text: markdownToWow(c.text) });
         } else if (c.type === 'tool_use') {
           const d = describeTool(c.name, c.input, this.cfg.projectDir);
-          this.log(`  ● ${c.name}(${d.detail})`);
+          if (!quiet) this.log(`  ● ${c.name}(${d.detail})`);
           this.emit({ k: 'tool', name: d.name, detail: d.detail, label: d.label });
         }
       }
@@ -251,6 +257,79 @@ export class Bridge {
         }
       }
     }
+  }
+
+  // ---------------------------------------------------------------- sesiones de la terminal
+
+  pickSession(arg) {
+    const n = Number(arg) || 1;
+    const list = this.lastList ?? listSessions(this.cfg.projectDir);
+    return list[n - 1] ?? null;
+  }
+
+  renderEntry(e) {
+    if (!e || e.isSidechain || e.isMeta) return;
+    if (isPrompt(e)) {
+      this.emit({ k: 'prompt', text: escapeWow(e.message.content) });
+    } else if (e.type === 'assistant' || (e.type === 'user' && Array.isArray(e.message?.content))) {
+      this.onClaude({ type: e.type, message: e.message }, { quiet: true });
+    }
+  }
+
+  command(text) {
+    const [name = '', arg] = text.trim().toLowerCase().split(/\s+/);
+    const project = path.basename(this.cfg.projectDir);
+    const info = (t) => this.emit({ k: 'info', text: t });
+    if (name === 'sesiones') {
+      const list = listSessions(this.cfg.projectDir);
+      this.lastList = list;
+      if (list.length === 0) return info(`No hay sesiones de Claude Code guardadas para ~/${escapeWow(project)}.`);
+      const lines = [`|cffd97757Sesiones de Claude Code en ~/${escapeWow(project)}|r`];
+      list.forEach((s, i) => {
+        const tags = [timeAgo(this.now() - s.mtime), s.active && 'activa', s.id === this.state.sessionId && 'la del juego']
+          .filter(Boolean)
+          .join(' · ');
+        const title = s.title.replace(/\s+/g, ' ').slice(0, 60);
+        lines.push(`${i + 1}. ${escapeWow(title)} |cff8a8a8a(${tags})|r  ${LINK('ver', i + 1, 'ver')} ${LINK('usar', i + 1, 'usar')}`);
+      });
+      lines.push('|cff8a8a8a/ver N para seguirla en directo · /usar N para continuarla desde el juego|r');
+      return this.emit({ k: 'block', text: lines.join('\n') });
+    }
+    if (name === 'ver') {
+      const s = this.pickSession(arg);
+      if (!s) return info('Esa sesión no existe. Usa /sesiones para ver la lista.');
+      const { entries } = tailEntries(s.file);
+      this.emit({ k: 'block', text: `|cffd97757── ${escapeWow(s.title.slice(0, 60))} ──|r\n|cff8a8a8aSesión de la terminal, solo lectura. Últimos mensajes:|r` });
+      const shown = entries.filter((e) => isPrompt(e) || e.type === 'assistant' || (e.type === 'user' && Array.isArray(e.message?.content)));
+      shown.slice(-15).forEach((e) => this.renderEntry(e));
+      this.follow = { id: s.id, follower: new Follower(s.file), lastPoll: 0 };
+      this.log(`Siguiendo la sesión ${s.id.slice(0, 8)} de la terminal`);
+      return info('Siguiendo en directo. /dejar para parar · /usar ' + (Number(arg) || 1) + ' para continuarla desde aquí.');
+    }
+    if (name === 'dejar') {
+      this.follow = null;
+      return info('Has dejado de seguir la sesión de la terminal.');
+    }
+    if (name === 'usar') {
+      const s = this.pickSession(arg);
+      if (!s) return info('Esa sesión no existe. Usa /sesiones para ver la lista.');
+      if (this.current) return info('Espera a que termine la tarea actual (o usa /stop).');
+      this.state.sessionId = s.id;
+      this.dirty = true;
+      const warn = s.active ? ' Parece abierta en tu terminal: no escribas en las dos a la vez.' : '';
+      return info(`Las próximas tareas continúan "${escapeWow(s.title.slice(0, 50))}".${warn}`);
+    }
+    return info('Comandos: /sesiones, /ver N, /dejar, /usar N.');
+  }
+
+  pollFollow() {
+    const f = this.follow;
+    if (!f || this.now() - f.lastPoll < 1000) return;
+    f.lastPoll = this.now();
+    const entries = f.follower.poll();
+    // Si es la sesión que está ejecutando el propio puente, ya la vemos en directo.
+    if (this.current && f.id === this.state.sessionId) return;
+    entries.forEach((e) => this.renderEntry(e));
   }
 
   cancel() {
@@ -332,6 +411,7 @@ export class Bridge {
 
   tick() {
     try {
+      this.pollFollow();
       this.flushLive();
       if ((this.dirty && this.now() - this.lastInbox > 1000) || this.now() - this.lastInbox > HEARTBEAT_MS) {
         this.writeInbox();

@@ -216,3 +216,21 @@ test('peticiones de permiso: se ven en la terminal y se responden escribiendo o 
   assert.equal(run('return tostring(ClaudeXWoWDB.asks["7"])'), 'nil');
   assert.match(run('return ClaudeXWoWDB.lines[#ClaudeXWoWDB.lines]'), /Permitido/);
 });
+
+test('sesiones: bloques, prompts de la terminal y enlaces clicables', { skip: !fengari && 'fengari no instalado' }, () => {
+  const run = makeLua();
+  run(fire);
+  run(`NS.Term.Event({ k = "block", text = "1. explica |Haddon:cxw:cmd:ver:1|h[ver]|h" })`);
+  run(`NS.Term.Event({ k = "prompt", text = "y ahora con monitores" })`);
+  const lines = run('return table.concat(ClaudeXWoWDB.lines, "\\\\n")');
+  assert.match(lines, /1\. explica/);
+  assert.match(lines, /❯\|r \|cffffffffy ahora con monitores/);
+  // Acusamos el saludo para que la siguiente trama sea la del comando.
+  const nonce = Number(run('return tostring(NS.nonce)'));
+  run('SHOWN = {}; local orig = NS.Pixel.Show; NS.Pixel.Show = function(...) table.insert(SHOWN, (select(4, ...))); return orig(...) end');
+  run(`SLOT_DATA["ClaudeXWoW_S001"] = assert(load("ClaudeXWoW_OnSlot(${nonce}, 1, {})")); ${publish(1)}`);
+  run('NS.Slots.Poll()');
+  // Clic en [ver] -> manda el comando "ver 1" al puente.
+  run(`for _, f in ipairs(FRAMES) do local h = rawget(f, "__scripts").OnHyperlinkClick; if h then h(f, "addon:cxw:cmd:ver:1") end end`);
+  assert.match(run('return SHOWN[#SHOWN]'), /^C\|\d+-\d+\|ver 1$/);
+});

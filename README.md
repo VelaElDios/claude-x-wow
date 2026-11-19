@@ -53,15 +53,24 @@ Reinicia el WoW si estaba abierto y escribe `/claude ayuda`.
 | `/stop` | Para la tarea actual |
 | `/clear` | Limpia la pantalla |
 | `/recargar` | Recarga la interfaz (reinicia el canal) |
+| `/sesiones` | Lista tus sesiones de Claude Code de la terminal en este proyecto |
+| `/ver N` | Sigue en directo la sesión N (solo lectura): ves lo que haces en Warp/la terminal |
+| `/usar N` | Las próximas tareas del juego continúan la sesión N |
+| `/dejar` | Deja de seguir la sesión |
+| `s` / `siempre` / `n` | Responde a una petición de permiso (o haz clic en los botones) |
 
-Desde el chat también funcionan `/claude <tarea>`, `/claude nuevo`, `/claude stop` y `/claude estado`.
+Desde el chat también funcionan `/claude <tarea>`, `/claude nuevo`, `/claude stop`, `/claude sesiones` y `/claude estado`.
+
+### Permisos desde el juego
+
+Cuando Claude quiere hacer algo que no está permitido de antemano (por ejemplo, ejecutar `npm test`), la terminal del juego te lo pregunta con botones **[ Sí ]**, **[ Siempre ]** y **[ No ]** (o escribiendo `s`, `siempre` o `n`). "Siempre" vale para esa herramienta (en Bash, para ese comando: `npm`, `git`...) hasta que cierres el puente. Por debajo usa `--permission-prompt-tool` de Claude Code con un pequeño servidor MCP propio (`bridge/permission-mcp.js`).
 
 En la lista de addons verás muchos "Claude x WoW - canal ###": son las ranuras del canal en directo, déjalos activados.
 
 ## Seguridad y permisos
 
 - Claude Code trabaja **solo en la carpeta de proyecto** que configures, en tu PC. Nada pasa por servidores de terceros más allá de lo que ya hace Claude Code.
-- Por defecto usa `permissionMode: "acceptEdits"`: puede leer y editar archivos del proyecto, pero **los comandos de terminal se bloquean** salvo que los permitas en `~/.claude-x-wow/config.json`:
+- Por defecto usa `permissionMode: "acceptEdits"`: puede leer y editar archivos del proyecto, y **todo lo demás (comandos de terminal, web...) te lo pregunta en el juego**. Si no quieres que pregunte, pon `"askPermissions": false` y se denegará. Puedes permitir cosas de antemano en `~/.claude-x-wow/config.json`:
 
 ```json
 {
@@ -77,8 +86,8 @@ En la lista de addons verás muchos "Claude x WoW - canal ###": son las ranuras 
 
 - [x] MVP con `/reload`
 - [x] Terminal estilo Claude Code con respuestas en directo (v0.2)
-- [ ] Ver en modo lectura las sesiones abiertas en tu terminal
-- [ ] Aprobar permisos desde el juego
+- [x] Ver y continuar desde el juego tus sesiones de la terminal (v0.3)
+- [x] Aprobar permisos desde el juego (v0.3)
 - [ ] Publicación en CurseForge
 
 ## Desarrollo

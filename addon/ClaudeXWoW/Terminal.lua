@@ -101,6 +101,12 @@ function Term.Event(e)
 		addBlock(e.text, RED .. "● Error:|r ", "  ", RED)
 	elseif k == "info" then
 		Term.Info(e.text)
+	elseif k == "prompt" then
+		addLine(" ")
+		addBlock(e.text, DIM .. "❯|r ", "  ", WHITE)
+	elseif k == "block" then
+		addLine(" ")
+		addBlock(e.text, "  ", "  ")
 	elseif k == "ask" then
 		local asks = db().asks
 		asks[e.id] = true
@@ -237,6 +243,8 @@ local function submit(text)
 		ns.Cancel()
 	elseif cmd == "/recargar" or cmd == "/reload" then
 		ReloadUI()
+	elseif cmd == "/sesiones" or cmd == "/dejar" or cmd:match("^/ver%s+%d+$") or cmd:match("^/usar%s+%d+$") then
+		ns.BridgeCommand(cmd:sub(2))
 	elseif cmd == "/estado" or cmd == "/ayuda" or cmd == "/help" then
 		ns.Command(cmd)
 	else
@@ -323,7 +331,13 @@ local function build()
 	out:SetInsertMode(SCROLLING_MESSAGE_FRAME_INSERT_MODE_BOTTOM or "BOTTOM")
 	out:SetHyperlinksEnabled(true)
 	out:SetScript("OnHyperlinkClick", function(_, link)
-		local d, id = tostring(link):match("^addon:cxw:(%a+):(%d+)$")
+		link = tostring(link)
+		local c, n = link:match("^addon:cxw:cmd:(%a+):(%d+)$")
+		if c then
+			ns.BridgeCommand(c .. " " .. n)
+			return
+		end
+		local d, id = link:match("^addon:cxw:(%a+):(%d+)$")
 		if d and db().asks[id] then
 			ns.Answer(id, d)
 		end
@@ -421,7 +435,7 @@ local function build()
 	footer = frame:CreateFontString(nil, "OVERLAY")
 	setFont(footer, 10)
 	footer:SetPoint("BOTTOMLEFT", 12, 8)
-	footer:SetText(DIM .. "enter enviar · ↑↓ historial · /nuevo · /stop · /clear · esc cerrar|r")
+	footer:SetText(DIM .. "enter enviar · ↑↓ historial · /sesiones · /nuevo · /stop · /clear · esc cerrar|r")
 
 	-- Asa para redimensionar.
 	local grip = CreateFrame("Button", nil, frame)
