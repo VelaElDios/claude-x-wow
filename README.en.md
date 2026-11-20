@@ -2,7 +2,7 @@
 
 **Your Claude Code, inside World of Warcraft.** A Claude Code–style terminal in the game: send tasks for your project, watch live which files it reads, edits and which commands it runs, and keep playing while it works.
 
-[Versión en español](README.md) · [Releases](https://github.com/VelaElDios/claude-x-wow/releases)
+[Download on CurseForge](https://www.curseforge.com/wow/addons/claude-terminal) · [Versión en español](README.md) · [Releases](https://github.com/VelaElDios/claude-x-wow/releases)
 
 ![Claude Code terminal inside WoW](docs/img/hero.png)
 

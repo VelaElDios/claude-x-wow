@@ -2,7 +2,7 @@
 
 **Tu Claude Code, dentro de World of Warcraft.** Una terminal con el estilo de Claude Code en el juego: le mandas tareas para tu proyecto, ves en directo qué archivos lee, qué edita y qué comandos ejecuta, y sigues jugando mientras trabaja.
 
-[English version](README.en.md) · [Releases](https://github.com/VelaElDios/claude-x-wow/releases)
+[Descargar en CurseForge](https://www.curseforge.com/wow/addons/claude-terminal) · [English version](README.en.md) · [Releases](https://github.com/VelaElDios/claude-x-wow/releases)
 
 ![Terminal de Claude Code dentro del WoW](docs/img/hero.png)
 
@@ -31,7 +31,7 @@ npm install -g github:VelaElDios/claude-x-wow
 claude-x-wow setup --project "C:\ruta\a\tu\proyecto"
 ```
 
-`setup` detecta el WoW, instala el addon y crea los canales en directo. Si no encuentra el juego: `--wow "C:\Program Files (x86)\World of Warcraft\_forever_"`.
+`setup` detecta el WoW, instala el addon y crea los canales en directo. El addon también está en [CurseForge](https://www.curseforge.com/wow/addons/claude-terminal) como **Claude Terminal**, pero el puente hace falta igualmente. Si no encuentra el juego: `--wow "C:\Program Files (x86)\World of Warcraft\_forever_"`.
 
 ## Uso
 
